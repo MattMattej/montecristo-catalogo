@@ -427,7 +427,7 @@ export default function HomePage() {
                   )}
                   
                   {/* Fotos adicionales: headshot, medium y extraPhotos */}
-                  {(selected.headshotPhoto || selected.mediumPhoto || selected.extraPhotos.length > 0) && (
+                  {(selected.headshotPhoto || selected.mediumPhoto || (selected.extraPhotos && selected.extraPhotos.length > 0)) && (
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-slate-600">
                         Fotos adicionales
@@ -460,7 +460,7 @@ export default function HomePage() {
                           </div>
                         )}
                         {/* Extra photos */}
-                        {selected.extraPhotos.map((url, i) => (
+                        {selected.extraPhotos?.map((url, i) => (
                           <div
                             key={i}
                             className="h-24 w-20 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0"
