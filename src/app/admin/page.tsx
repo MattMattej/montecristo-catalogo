@@ -201,12 +201,10 @@ export default function AdminPage() {
         adminSecret: savedPassword
       };
 
+      // Enviar como texto plano sin Content-Type personalizado para evitar preflight CORS
       const res = await fetch(url, {
         method: "POST",
         redirect: "follow",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify(body)
       });
       if (!res.ok) {

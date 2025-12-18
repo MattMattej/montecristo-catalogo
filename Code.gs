@@ -219,12 +219,22 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    const contentType = e.postData && e.postData.type;
+    // Intentar parsear el body como JSON (puede venir sin Content-Type o con diferentes tipos)
     var body;
-    if (contentType === "application/json") {
-      body = JSON.parse(e.postData.contents);
-    } else {
-      body = JSON.parse(e.postData.getDataAsString());
+    try {
+      if (e.postData && e.postData.contents) {
+        body = JSON.parse(e.postData.contents);
+      } else {
+        body = JSON.parse(e.postData.getDataAsString());
+      }
+    } catch (parseError) {
+      // Si falla, intentar desde e.parameter (form-urlencoded)
+      var params = e.parameter;
+      if (params && params.data) {
+        body = JSON.parse(params.data);
+      } else {
+        throw new Error("No se pudo parsear el body: " + String(parseError));
+      }
     }
 
     const secret = body.adminSecret;
