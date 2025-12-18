@@ -42,7 +42,9 @@ export default function HomePage() {
           return;
         }
         console.log("Fetching from URL:", url);
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          redirect: "follow"
+        });
         console.log("Response status:", res.status, res.statusText);
         
         if (!res.ok) {
@@ -284,19 +286,25 @@ export default function HomePage() {
         </section>
 
         {loading && (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="overflow-hidden rounded-2xl bg-card shadow-soft/30"
-              >
-                <Skeleton className="aspect-[3/4] w-full" />
-                <div className="p-3 space-y-2">
-                  <Skeleton className="h-3 w-2/3" />
-                  <Skeleton className="h-2 w-1/2" />
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-2 py-4">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></div>
+              <p className="text-sm font-medium text-slate-600">Cargando catálogo de talentos...</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl bg-card shadow-soft/30"
+                >
+                  <Skeleton className="aspect-[3/4] w-full" />
+                  <div className="p-3 space-y-2">
+                    <Skeleton className="h-3 w-2/3" />
+                    <Skeleton className="h-2 w-1/2" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 

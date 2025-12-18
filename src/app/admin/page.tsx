@@ -53,7 +53,9 @@ export default function AdminPage() {
           setLoading(false);
           return;
         }
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          redirect: "follow"
+        });
         if (!res.ok) throw new Error("Error al cargar datos");
         const data = await res.json();
         
@@ -201,6 +203,7 @@ export default function AdminPage() {
 
       const res = await fetch(url, {
         method: "POST",
+        redirect: "follow",
         headers: {
           "Content-Type": "application/json"
         },

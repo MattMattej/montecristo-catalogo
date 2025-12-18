@@ -65,20 +65,20 @@ const SHEETS = [
   }
 ];
 
-// Función auxiliar para agregar headers CORS
-function setCORSHeaders(output) {
-  return output
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+// Función auxiliar para crear respuesta con CORS
+// Nota: ContentService no soporta setHeader(), los headers CORS deben configurarse
+// en la configuración del Web App (desplegar como "Cualquiera, incluso anónimo")
+function createCORSResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Manejar peticiones OPTIONS (preflight CORS)
 function doOptions() {
-  return setCORSHeaders(ContentService.createTextOutput(''));
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 function doGet(e) {
@@ -207,17 +207,13 @@ function doGet(e) {
       result.warnings = errors;
     }
 
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify(result))
-    );
+    return createCORSResponse(result);
   } catch (e) {
     const errorPayload = { 
       error: String(e),
       stack: e.stack || "No stack trace"
     };
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify(errorPayload))
-    );
+    return createCORSResponse(errorPayload);
   }
 }
 
@@ -234,23 +230,17 @@ function doPost(e) {
     const secret = body.adminSecret;
 
     if (!secret || secret !== CONFIG.ADMIN_PASSWORD) {
-      return setCORSHeaders(
-        ContentService.createTextOutput(JSON.stringify({ error: "UNAUTHORIZED" }))
-      );
+      return createCORSResponse({ error: "UNAUTHORIZED" });
     }
 
     if (body.action === "update") {
       return handleUpdate(body);
     }
 
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify({ error: "UNKNOWN_ACTION" }))
-    );
+    return createCORSResponse({ error: "UNKNOWN_ACTION" });
   } catch (e2) {
     const errorPayload = { error: String(e2) };
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify(errorPayload))
-    );
+    return createCORSResponse(errorPayload);
   }
 }
 
@@ -259,9 +249,7 @@ function handleUpdate(body) {
   const updates = body.updates || {};
 
   if (!rowRef || !rowRef.sheetKey || !rowRef.rowIndex) {
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify({ error: "INVALID_ROW_REF" }))
-    );
+    return createCORSResponse({ error: "INVALID_ROW_REF" });
   }
 
   const def = SHEETS.filter(function (d) {
@@ -269,17 +257,13 @@ function handleUpdate(body) {
   })[0];
 
   if (!def) {
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify({ error: "SHEET_NOT_FOUND" }))
-    );
+    return createCORSResponse({ error: "SHEET_NOT_FOUND" });
   }
 
   const ss = SpreadsheetApp.openById(def.spreadsheetId);
   const sh = ss.getSheetByName(def.sheetName);
   if (!sh) {
-    return setCORSHeaders(
-      ContentService.createTextOutput(JSON.stringify({ error: "SHEET_NOT_FOUND" }))
-    );
+    return createCORSResponse({ error: "SHEET_NOT_FOUND" });
   }
 
   const headerRow = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -300,7 +284,5 @@ function handleUpdate(body) {
     sh.getRange(rowRef.rowIndex, col).setValue(value);
   });
 
-  return setCORSHeaders(
-    ContentService.createTextOutput(JSON.stringify({ ok: true }))
-  );
+  return createCORSResponse({ ok: true });
 }
