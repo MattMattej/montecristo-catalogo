@@ -6,20 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-type EditableKeys =
-  | "phones"
-  | "email"
-  | "notes"
-  | "skills"
-  | "languages"
-  | "actingExperience"
-  | "reelLink"
-  | "socialLinks"
-  | "availability"
-  | "wantsExtras"
-  | "driverLicense";
-
-type EditableState = Partial<Record<EditableKeys, string>>;
+type EditableState = Record<string, string>;
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -91,19 +78,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!selected) return;
-    const state: EditableState = {
-      phones: selected.phones ?? "",
-      email: selected.email ?? "",
-      notes: selected.notes ?? "",
-      skills: selected.skills ?? "",
-      languages: selected.languages ?? "",
-      actingExperience: selected.actingExperience ?? "",
-      reelLink: selected.reelLink ?? "",
-      socialLinks: selected.socialLinks ?? "",
-      availability: selected.availability ?? "",
-      wantsExtras: selected.wantsExtras ?? "",
-      driverLicense: selected.driverLicense ?? ""
-    };
+    // Inicializar todos los campos de raw excepto "Marca temporal"
+    const state: EditableState = {};
+    for (const [key, value] of Object.entries(selected.raw)) {
+      if (key !== "Marca temporal" && key !== "Timestamp") {
+        state[key] = value || "";
+      }
+    }
     setEditable(state);
   }, [selected]);
 
@@ -128,70 +109,17 @@ export default function AdminPage() {
       const url = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL;
       if (!url) throw new Error("Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL");
 
+      // Enviar todos los campos que han cambiado
       const updates: Record<string, string> = {};
-
-      // Mapear campos editables a nombres de columnas exactas
-      if (editable.phones !== undefined) {
-        // Separamos en dos números si es posible, pero sin romper nada
-        updates["NÚMERO DE CONTACTO"] = editable.phones;
-      }
-      if (editable.email !== undefined) {
-        updates["MAIL"] = editable.email;
-      }
-      if (editable.notes !== undefined) {
-        updates["OBSERVACIÓN DE CONTACTO"] =
-          editable.notes ||
-          selected.raw["OBSERVACIÓN DE CONTACTO"] ||
-          selected.raw["OBSERVACION DE CONTACTO"] ||
-          "";
-      }
-      if (editable.skills !== undefined) {
-        updates["HABILIDADES"] = editable.skills;
-      }
-      if (editable.languages !== undefined) {
-        if ("IDIOMAS" in selected.raw) {
-          updates["IDIOMAS"] = editable.languages;
-        } else if ("IDOMAS" in selected.raw) {
-          updates["IDOMAS"] = editable.languages;
-        } else {
-          updates["IDIOMAS"] = editable.languages;
+      for (const [key, value] of Object.entries(editable)) {
+        // Excluir "Marca temporal" y "Timestamp"
+        if (key === "Marca temporal" || key === "Timestamp") continue;
+        
+        // Solo enviar si el valor cambió respecto al original
+        const originalValue = selected.raw[key] || "";
+        if (value !== originalValue) {
+          updates[key] = value;
         }
-      }
-      if (editable.actingExperience !== undefined) {
-        if ("EXPERIENCIA ACTORAL" in selected.raw) {
-          updates["EXPERIENCIA ACTORAL"] = editable.actingExperience;
-        } else if ("EXPERIENCIA EN ACTUACIÓN" in selected.raw) {
-          updates["EXPERIENCIA EN ACTUACIÓN"] = editable.actingExperience;
-        } else {
-          updates["EXPERIENCIA ACTORAL"] = editable.actingExperience;
-        }
-      }
-      if (editable.reelLink !== undefined) {
-        updates["LINK A REEL"] = editable.reelLink;
-      }
-      if (editable.socialLinks !== undefined) {
-        updates["LINK A TU REDES"] = editable.socialLinks;
-      }
-      if (editable.availability !== undefined) {
-        if ("DISPONIBILIDAD HORARIA" in selected.raw) {
-          updates["DISPONIBILIDAD HORARIA"] = editable.availability;
-        } else if ("QUE DISPONIBILIDAD HORARIA TENES" in selected.raw) {
-          updates["QUE DISPONIBILIDAD HORARIA TENES"] = editable.availability;
-        } else {
-          updates["DISPONIBILIDAD HORARIA"] = editable.availability;
-        }
-      }
-      if (editable.wantsExtras !== undefined) {
-        if ("TE INTERESA SER EXTRA" in selected.raw) {
-          updates["TE INTERESA SER EXTRA"] = editable.wantsExtras;
-        } else if ("INTERES EN SER EXTRA" in selected.raw) {
-          updates["INTERES EN SER EXTRA"] = editable.wantsExtras;
-        } else {
-          updates["TE INTERESA SER EXTRA"] = editable.wantsExtras;
-        }
-      }
-      if (editable.driverLicense !== undefined) {
-        updates["LIBRETA DE CONDUCIR"] = editable.driverLicense;
       }
 
       const body = {
@@ -348,87 +276,27 @@ export default function AdminPage() {
                   </Button>
                 </div>
 
-                <div className="grid gap-3 text-xs">
-                  <FieldEdit
-                    label="Teléfonos"
-                    value={editable.phones ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, phones: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Mail"
-                    value={editable.email ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, email: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Observaciones de contacto"
-                    value={editable.notes ?? ""}
-                    multiline
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, notes: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Habilidades"
-                    value={editable.skills ?? ""}
-                    multiline
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, skills: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Idiomas"
-                    value={editable.languages ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, languages: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Experiencia actoral"
-                    value={editable.actingExperience ?? ""}
-                    multiline
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, actingExperience: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Link a reel"
-                    value={editable.reelLink ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, reelLink: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Redes"
-                    value={editable.socialLinks ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, socialLinks: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Disponibilidad horaria"
-                    value={editable.availability ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, availability: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Interés en ser extra"
-                    value={editable.wantsExtras ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, wantsExtras: v }))
-                    }
-                  />
-                  <FieldEdit
-                    label="Libreta de conducir"
-                    value={editable.driverLicense ?? ""}
-                    onChange={(v) =>
-                      setEditable((s) => ({ ...s, driverLicense: v }))
-                    }
-                  />
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {Object.entries(editable)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([key, value]) => (
+                      <FieldEdit
+                        key={key}
+                        label={key}
+                        value={value}
+                        onChange={(v) =>
+                          setEditable((s) => ({ ...s, [key]: v }))
+                        }
+                        multiline={
+                          value.length > 50 ||
+                          key.toLowerCase().includes("observ") ||
+                          key.toLowerCase().includes("experiencia") ||
+                          key.toLowerCase().includes("habilidad") ||
+                          key.toLowerCase().includes("foto") ||
+                          key.toLowerCase().includes("link")
+                        }
+                      />
+                    ))}
                 </div>
 
                 {error && (

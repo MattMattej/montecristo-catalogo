@@ -10,4 +10,46 @@ body {
   @apply max-w-6xl mx-auto px-4;
 }
 
+/* Estilos para slider de rango de edad */
+input[type="range"].age-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type="range"].age-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(15 23 42);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 20;
+}
+
+input[type="range"].age-range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(15 23 42);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"].age-range-slider::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 2px;
+}
+
+input[type="range"].age-range-slider::-moz-range-track {
+  background: transparent;
+  height: 2px;
+  border: none;
+}
+
 

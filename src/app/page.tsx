@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { NormalizedProfile, normalizeProfile } from "@/lib/normalize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ type Filters = {
   locations: Location[];
   categories: Category[];
   gender: string[];
+  ageRange: [number, number];
 };
 
 const PAGE_SIZE = 24;
@@ -23,14 +24,36 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<NormalizedProfile | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Calcular rango válido de edades (solo edades razonables entre 0 y 120)
+  const ageRange = useMemo(() => {
+    if (!Array.isArray(profiles) || profiles.length === 0) return [0, 100];
+    const ages = profiles
+      .map((p) => p.age)
+      .filter((age): age is number => 
+        typeof age === "number" && age >= 0 && age <= 120 && Number.isFinite(age)
+      );
+    if (ages.length === 0) return [0, 100];
+    const minAge = Math.min(...ages);
+    const maxAge = Math.max(...ages);
+    // Asegurar que el rango sea razonable
+    return [Math.max(0, Math.floor(minAge)), Math.min(100, Math.ceil(maxAge))];
+  }, [profiles]);
 
   const [filters, setFilters] = useState<Filters>({
     search: "",
     locations: [],
     categories: [],
-    gender: []
+    gender: [],
+    ageRange: [0, 100]
   });
+  
+  // Estado para saber si el usuario ha modificado el slider de edad
+  const [ageFilterActive, setAgeFilterActive] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -120,6 +143,27 @@ export default function HomePage() {
     load();
   }, []);
 
+  // Resetear índice de imagen cuando cambia el perfil seleccionado
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [selected?.id]);
+
+
+  // Recolectar todas las fotos disponibles del perfil seleccionado
+  const allPhotos = useMemo(() => {
+    if (!selected) return [];
+    const photos: string[] = [];
+    if (selected.mainPhoto) photos.push(selected.mainPhoto);
+    if (selected.headshotPhoto && selected.headshotPhoto !== selected.mainPhoto) {
+      photos.push(selected.headshotPhoto);
+    }
+    if (selected.mediumPhoto) photos.push(selected.mediumPhoto);
+    if (selected.extraPhotos) photos.push(...selected.extraPhotos);
+    return photos;
+  }, [selected]);
+
+  const currentPhoto = allPhotos[Math.min(selectedImageIndex, allPhotos.length - 1)] || null;
+
   const genders = useMemo(
     () => {
       if (!Array.isArray(profiles) || profiles.length === 0) return [];
@@ -146,6 +190,18 @@ export default function HomePage() {
       if (filters.gender.length && p.gender) {
         if (!filters.gender.includes(p.gender)) return false;
       }
+      // Filtrar por edad solo si el usuario ha activado el filtro
+      if (ageFilterActive && p.age !== undefined) {
+        const age = p.age;
+        // Si la edad es válida (0-120), aplicar el filtro
+        if (age >= 0 && age <= 120 && Number.isFinite(age)) {
+          if (age < filters.ageRange[0] || age > filters.ageRange[1]) {
+            return false;
+          }
+        }
+        // Si la edad es inválida (> 120), siempre mostrarla si el filtro está activo
+        // (pero esto no debería pasar si filtramos bien)
+      }
       if (filters.search.trim()) {
         const q = filters.search.toLowerCase();
         const haystack = [
@@ -165,6 +221,36 @@ export default function HomePage() {
   }, [profiles, filters]);
 
   const visible = filtered.slice(0, page * PAGE_SIZE);
+
+  // Intersection Observer para scroll infinito
+  useEffect(() => {
+    const currentRef = loadMoreRef.current;
+    if (!currentRef || loadingMore || visible.length >= filtered.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && visible.length < filtered.length) {
+          setLoadingMore(true);
+          // Pequeño delay para mostrar el spinner
+          setTimeout(() => {
+            setPage((p) => p + 1);
+            setLoadingMore(false);
+          }, 300);
+        }
+      },
+      {
+        rootMargin: "200px" // Cargar cuando esté a 200px del final
+      }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [visible.length, filtered.length, loadingMore]);
 
   const toggleArrayFilter = <T,>(
     key: keyof Filters,
@@ -217,8 +303,10 @@ export default function HomePage() {
                     search: "",
                     locations: [],
                     categories: [],
-                    gender: []
+                    gender: [],
+                    ageRange: [0, 100]
                   });
+                  setAgeFilterActive(false);
                 }}
               >
                 Limpiar filtros
@@ -226,7 +314,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="flex flex-wrap gap-1 text-xs items-center">
               <span className="font-medium text-slate-600">Locación:</span>
               {(["Montevideo", "Punta del Este"] as Location[]).map((loc) => (
@@ -281,6 +369,62 @@ export default function HomePage() {
               ) : (
                 <span className="text-slate-400 text-[10px]">No disponible</span>
               )}
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-600">Edad:</span>
+                <span className="text-slate-500">
+                  {ageFilterActive 
+                    ? `${filters.ageRange[0]} - ${filters.ageRange[1]} años`
+                    : "Todos"}
+                </span>
+              </div>
+              <div className="relative h-6 flex items-center">
+                {/* Barra de fondo */}
+                <div className="absolute w-full h-2 bg-slate-200 rounded-lg" />
+                {/* Barra activa (rango seleccionado) */}
+                <div 
+                  className="absolute h-2 bg-slate-900 rounded-lg pointer-events-none"
+                  style={{
+                    left: `${(filters.ageRange[0] / 100) * 100}%`,
+                    width: `${((filters.ageRange[1] - filters.ageRange[0]) / 100) * 100}%`
+                  }}
+                />
+                {/* Slider mínimo */}
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={filters.ageRange[0]}
+                  onChange={(e) => {
+                    const min = parseInt(e.target.value);
+                    setPage(1);
+                    setAgeFilterActive(true);
+                    setFilters((f) => ({
+                      ...f,
+                      ageRange: [min, Math.max(min, f.ageRange[1])]
+                    }));
+                  }}
+                  className="age-range-slider absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10"
+                />
+                {/* Slider máximo */}
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={filters.ageRange[1]}
+                  onChange={(e) => {
+                    const max = parseInt(e.target.value);
+                    setPage(1);
+                    setAgeFilterActive(true);
+                    setFilters((f) => ({
+                      ...f,
+                      ageRange: [Math.min(f.ageRange[0], max), max]
+                    }));
+                  }}
+                  className="age-range-slider absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -387,13 +531,15 @@ export default function HomePage() {
             </section>
 
                 {visible.length < filtered.length && (
-                  <div className="flex justify-center py-6">
-                    <Button
-                      variant="outline"
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      Cargar más
-                    </Button>
+                  <div ref={loadMoreRef} className="flex justify-center py-6 min-h-[60px]">
+                    {loadingMore ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></div>
+                        <span className="text-xs text-slate-600">Cargando más perfiles...</span>
+                      </div>
+                    ) : (
+                      <div className="h-1 w-1" /> // Elemento invisible para el observer
+                    )}
                   </div>
                 )}
               </>
@@ -402,7 +548,15 @@ export default function HomePage() {
         )}
       </section>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Dialog 
+        open={!!selected} 
+        onOpenChange={(o) => {
+          if (!o) {
+            setSelected(null);
+            setSelectedImageIndex(0);
+          }
+        }}
+      >
         <DialogContent>
           {selected && (
             <>
@@ -420,68 +574,51 @@ export default function HomePage() {
 
               <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
                 <div className="space-y-3">
-                  {/* Foto principal: usar mainPhoto (plano entero) o headshotPhoto como fallback */}
-                  {(selected.mainPhoto || selected.headshotPhoto) && (
-                    <div className="overflow-hidden rounded-xl bg-slate-100">
+                  {/* Foto principal grande */}
+                  {currentPhoto ? (
+                    <div className="overflow-hidden rounded-xl bg-slate-100 aspect-[3/4]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={selected.mainPhoto || selected.headshotPhoto}
+                        src={currentPhoto}
                         alt={selected.fullName}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
                         loading="lazy"
                       />
                     </div>
+                  ) : (
+                    <div className="flex h-full min-h-[400px] items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400">
+                      Sin foto
+                    </div>
                   )}
                   
-                  {/* Fotos adicionales: headshot, medium y extraPhotos */}
-                  {(selected.headshotPhoto || selected.mediumPhoto || (selected.extraPhotos && selected.extraPhotos.length > 0)) && (
+                  {/* Miniaturas de todas las fotos */}
+                  {allPhotos.length > 1 && (
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-slate-600">
-                        Fotos adicionales
+                        Fotos disponibles ({allPhotos.length})
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {/* Headshot si es diferente de mainPhoto */}
-                        {selected.headshotPhoto && selected.headshotPhoto !== selected.mainPhoto && (
-                          <div className="h-24 w-20 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={selected.headshotPhoto}
-                              alt="Primer plano"
-                              className="h-full w-full object-cover"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                            />
-                          </div>
-                        )}
-                        {/* Medium photo */}
-                        {selected.mediumPhoto && (
-                          <div className="h-24 w-20 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={selected.mediumPhoto}
-                              alt="Plano medio"
-                              className="h-full w-full object-cover"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                            />
-                          </div>
-                        )}
-                        {/* Extra photos */}
-                        {selected.extraPhotos?.map((url, i) => (
-                          <div
+                        {allPhotos.map((url, i) => (
+                          <button
                             key={i}
-                            className="h-24 w-20 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0"
+                            type="button"
+                            onClick={() => setSelectedImageIndex(i)}
+                            className={`h-20 w-16 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0 transition-all ${
+                              i === selectedImageIndex
+                                ? "ring-2 ring-slate-900 ring-offset-2"
+                                : "opacity-70 hover:opacity-100"
+                            }`}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={url}
-                              alt={`Foto adicional ${i + 1}`}
+                              alt={`Foto ${i + 1}`}
                               className="h-full w-full object-cover"
                               referrerPolicy="no-referrer"
                               loading="lazy"
                             />
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
