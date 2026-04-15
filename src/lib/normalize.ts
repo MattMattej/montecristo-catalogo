@@ -62,9 +62,7 @@ function parseNumber(value?: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export function computeAgeFromDate(dateStr?: string): number | undefined {
-  if (!dateStr) return undefined;
-  const parsed = new Date(dateStr);
+function ageFromDate(parsed: Date): number | undefined {
   if (Number.isNaN(parsed.getTime())) return undefined;
   const now = new Date();
   let age = now.getFullYear() - parsed.getFullYear();
@@ -73,6 +71,54 @@ export function computeAgeFromDate(dateStr?: string): number | undefined {
     age--;
   }
   return age >= 0 && age < 120 ? age : undefined;
+}
+
+function parseDateLikeValue(value?: string): Date | undefined {
+  if (!value) return undefined;
+  const raw = value.trim();
+  if (!raw) return undefined;
+
+  // Soporta seriales de fecha de spreadsheets/excel (días desde 1899-12-30).
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      if (numeric > 10000 && numeric < 100000) {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        return new Date(excelEpoch.getTime() + numeric * 86400000);
+      }
+      // Soporta unix timestamp en segundos o milisegundos.
+      if (numeric >= 1000000000 && numeric < 10000000000) {
+        return new Date(numeric * 1000);
+      }
+      if (numeric >= 1000000000000 && numeric < 10000000000000) {
+        return new Date(numeric);
+      }
+    }
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+export function computeAgeFromDate(dateStr?: string): number | undefined {
+  const parsed = parseDateLikeValue(dateStr);
+  if (!parsed) return undefined;
+  return ageFromDate(parsed);
+}
+
+function parseAge(value?: string): number | undefined {
+  if (!value) return undefined;
+  const raw = value.trim();
+  if (!raw) return undefined;
+
+  // Solo aceptar una edad directa cuando el campo realmente parece una edad.
+  if (/^\d{1,3}$/.test(raw)) {
+    const numericAge = Number(raw);
+    return numericAge >= 0 && numericAge < 120 ? numericAge : undefined;
+  }
+
+  // Si el campo de edad contiene fecha/serial, calcular edad a partir de esa fecha.
+  return computeAgeFromDate(raw);
 }
 
 function asBool(text?: string): boolean | undefined {
@@ -167,7 +213,7 @@ export function normalizeProfile(args: {
   const fullName = [name, lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
 
   const age =
-    parseNumber(row["EDAD"]) ??
+    parseAge(row["EDAD"]) ??
     computeAgeFromDate(row["FECHA DE NACIMIENTO"]) ??
     computeAgeFromDate(row["FECHA DE NACIMIENTO DEL MENOR"]);
 
