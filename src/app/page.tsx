@@ -266,9 +266,9 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-slate-100">
-      <section className="container-narrow py-8 space-y-6">
-        <header className="space-y-2">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/80">
+      <section className="container-narrow py-8 space-y-6 md:space-y-7">
+        <header className="space-y-3 rounded-3xl border border-slate-200/80 bg-white/75 p-5 shadow-sm backdrop-blur md:p-7">
           <p className="text-xs font-medium tracking-[0.25em] uppercase text-slate-500">
             Montecristo Casting
           </p>
@@ -280,12 +280,12 @@ export default function HomePage() {
           </p>
         </header>
 
-        <section className="sticky top-0 z-10 mb-2 -mx-4 bg-gradient-to-b from-background/95 to-background/90 px-4 py-3 backdrop-blur">
+        <section className="sticky top-0 z-10 mb-2 -mx-2 rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-4 shadow-sm backdrop-blur md:-mx-0">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex-1 flex gap-2">
               <Input
                 placeholder="Buscar por nombre, ciudad, habilidades..."
-                className="flex-1"
+                className="h-10 flex-1 border-slate-200 bg-white/90"
                 value={filters.search}
                 onChange={(e) => {
                   setPage(1);
@@ -297,6 +297,7 @@ export default function HomePage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="h-10 border-slate-300 bg-white hover:bg-slate-50"
                 onClick={() => {
                   setPage(1);
                   setFilters({
@@ -314,8 +315,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-wrap gap-1 text-xs items-center">
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className="flex min-h-[44px] flex-wrap gap-1 text-xs items-center rounded-xl bg-slate-50/90 px-2 py-1.5">
               <span className="font-medium text-slate-600">Locación:</span>
               {(["Montevideo", "Punta del Este"] as Location[]).map((loc) => (
                 <button
@@ -331,7 +332,7 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-1 text-xs items-center">
+            <div className="flex min-h-[44px] flex-wrap gap-1 text-xs items-center rounded-xl bg-slate-50/90 px-2 py-1.5">
               <span className="font-medium text-slate-600">Categoría:</span>
               {(["ACTORES", "CASTING", "EXTRAS", "MENORES"] as Category[]).map(
                 (cat) => (
@@ -349,7 +350,7 @@ export default function HomePage() {
                 )
               )}
             </div>
-            <div className="flex flex-wrap gap-1 text-xs items-center">
+            <div className="flex min-h-[44px] flex-wrap gap-1 text-xs items-center rounded-xl bg-slate-50/90 px-2 py-1.5">
               <span className="font-medium text-slate-600">Género:</span>
               {genders.length > 0 ? (
                 genders.map((g) => (
@@ -370,7 +371,7 @@ export default function HomePage() {
                 <span className="text-slate-400 text-[10px]">No disponible</span>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 rounded-xl bg-slate-50/90 px-2 py-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-600">Edad:</span>
                 <span className="text-slate-500">
@@ -381,10 +382,10 @@ export default function HomePage() {
               </div>
               <div className="relative h-6 flex items-center">
                 {/* Barra de fondo */}
-                <div className="absolute w-full h-2 bg-slate-200 rounded-lg" />
+                <div className="absolute w-full h-2 bg-slate-200/90 rounded-lg" />
                 {/* Barra activa (rango seleccionado) */}
                 <div 
-                  className="absolute h-2 bg-slate-900 rounded-lg pointer-events-none"
+                  className="absolute h-2 bg-gradient-to-r from-slate-700 to-slate-900 rounded-lg pointer-events-none"
                   style={{
                     left: `${(filters.ageRange[0] / 100) * 100}%`,
                     width: `${((filters.ageRange[1] - filters.ageRange[0]) / 100) * 100}%`
@@ -482,7 +483,7 @@ export default function HomePage() {
                   key={p.id}
                   type="button"
                   onClick={() => setSelected(p)}
-                  className="group relative overflow-hidden rounded-2xl bg-card text-left shadow-soft/40 ring-1 ring-slate-200/60 transition hover:-translate-y-1 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                 >
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100">
                     {p.headshotPhoto || p.mainPhoto ? (
@@ -490,7 +491,7 @@ export default function HomePage() {
                       <img
                         src={p.headshotPhoto || p.mainPhoto}
                         alt={p.fullName}
-                        className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]"
                         referrerPolicy="no-referrer"
                         loading="lazy"
                       />
@@ -500,28 +501,29 @@ export default function HomePage() {
                         Sin foto
                       </div>
                     )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/35 to-transparent opacity-0 transition group-hover:opacity-100" />
                   </div>
-                  <div className="p-3 space-y-2">
-                    <p className="text-xs font-medium leading-snug line-clamp-2">
+                  <div className="space-y-2 p-3">
+                    <p className="text-xs font-semibold leading-snug text-slate-800 line-clamp-2">
                       {p.fullName}
                     </p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {p.age && (
-                        <Badge className="text-[10px]">
+                        <Badge className="bg-slate-100 text-[10px] text-slate-700">
                           {p.age} años
                         </Badge>
                       )}
                       {p.heightMeters && (
-                        <Badge className="text-[10px]">
+                        <Badge className="bg-slate-100 text-[10px] text-slate-700">
                           {p.heightMeters.toFixed(2)} m
                         </Badge>
                       )}
                       {p.gender && (
-                        <Badge className="text-[10px]">
+                        <Badge className="bg-slate-100 text-[10px] text-slate-700">
                           {p.gender}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="border-slate-300 text-[10px] text-slate-600">
                         {p.location} · {p.category}
                       </Badge>
                     </div>
@@ -557,26 +559,30 @@ export default function HomePage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-6xl p-0">
           {selected && (
             <>
               <DialogHeader>
-                <div>
+                <div className="rounded-t-2xl border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-white px-5 py-4 md:px-6">
                   <DialogTitle>{selected.fullName}</DialogTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {selected.location} · {selected.category}
-                    {selected.age && ` · ${selected.age} años`}
-                    {selected.heightMeters && ` · ${selected.heightMeters.toFixed(2)} m`}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <MetaChip>{selected.location}</MetaChip>
+                    <MetaChip>{selected.category}</MetaChip>
+                    {selected.age ? <MetaChip>{selected.age} años</MetaChip> : null}
+                    {selected.heightMeters ? <MetaChip>{selected.heightMeters.toFixed(2)} m</MetaChip> : null}
+                    {selected.gender ? <MetaChip>{selected.gender}</MetaChip> : null}
+                  </div>
                 </div>
-                <DialogClose>✕</DialogClose>
+                <DialogClose>
+                  <span className="text-lg leading-none">✕</span>
+                </DialogClose>
               </DialogHeader>
 
-              <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-                <div className="space-y-3">
+              <div className="grid gap-5 px-5 pb-5 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:px-6 md:pb-6">
+                <div className="space-y-3 md:sticky md:top-4 md:self-start">
                   {/* Foto principal grande */}
                   {currentPhoto ? (
-                    <div className="overflow-hidden rounded-xl bg-slate-100 aspect-[3/4]">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 aspect-[3/4] shadow-sm">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={currentPhoto}
@@ -604,10 +610,10 @@ export default function HomePage() {
                             key={i}
                             type="button"
                             onClick={() => setSelectedImageIndex(i)}
-                            className={`h-20 w-16 overflow-hidden rounded-lg bg-slate-100 flex-shrink-0 transition-all ${
+                            className={`h-20 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex-shrink-0 transition-all ${
                               i === selectedImageIndex
                                 ? "ring-2 ring-slate-900 ring-offset-2"
-                                : "opacity-70 hover:opacity-100"
+                                : "opacity-75 hover:opacity-100"
                             }`}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -629,7 +635,7 @@ export default function HomePage() {
                       href={selected.reelLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center text-xs font-medium text-slate-800 underline underline-offset-4"
+                      className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Ver reel
                     </a>
@@ -714,8 +720,8 @@ export default function HomePage() {
                     <Section title="Otros campos">
                       <div className="grid gap-1">
                         {Object.entries(selected.extraFields).map(([k, v]) => (
-                          <div key={k} className="flex gap-1">
-                            <span className="font-medium">{k}:</span>
+                          <div key={k} className="rounded-lg bg-slate-50 px-2 py-1">
+                            <span className="font-medium text-slate-600">{k}:</span>{" "}
                             <span className="text-slate-700">{v}</span>
                           </div>
                         ))}
@@ -741,10 +747,10 @@ function Section({
 }) {
   return (
     <section className="space-y-1.5">
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {title}
       </h3>
-      <div className="rounded-xl bg-white/70 p-3 ring-1 ring-slate-200/80 space-y-1.5">
+      <div className="space-y-2 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm">
         {children}
       </div>
     </section>
@@ -754,10 +760,18 @@ function Section({
 function Field({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
-    <div className="flex gap-1 text-[11px] text-slate-700">
-      <span className="font-medium text-slate-600">{label}:</span>
+    <div className="rounded-lg bg-slate-50/80 px-2 py-1 text-[11px] text-slate-700">
+      <span className="font-medium text-slate-600">{label}:</span>{" "}
       <span>{value}</span>
     </div>
+  );
+}
+
+function MetaChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
+      {children}
+    </span>
   );
 }
 

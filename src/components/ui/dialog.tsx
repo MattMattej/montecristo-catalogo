@@ -62,14 +62,14 @@ export function DialogContent({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm md:items-center md:p-6"
       onClick={() => setOpen(false)}
       aria-modal="true"
       role="dialog"
     >
       <div
         className={cn(
-          "relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-card p-6 shadow-soft transition-transform",
+          "relative max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-white/50 bg-card/95 p-4 shadow-soft transition-transform md:max-h-[90vh] md:p-6",
           className
         )}
         onClick={(e) => e.stopPropagation()}
