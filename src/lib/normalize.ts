@@ -46,6 +46,7 @@ export type NormalizedProfile = BaseProfile & {
   headshotPhoto?: string;
   mediumPhoto?: string;
   extraPhotos?: string[];
+  thumbnail?: string;
   reelLink?: string;
   socialLinks?: string;
   phones?: string;
@@ -143,7 +144,7 @@ export function buildId(location: Location, category: Category, rowRef: RowRef) 
  * 
  * Usa el formato de thumbnail de Google Drive que funciona mejor con archivos compartidos.
  */
-function convertDriveLinkToPublicUrl(link?: string): string | undefined {
+function convertDriveLinkToPublicUrl(link?: string, size: number = 0): string | undefined {
   if (!link) return undefined;
   
   const trimmed = link.trim();
@@ -151,42 +152,64 @@ function convertDriveLinkToPublicUrl(link?: string): string | undefined {
   
   // Si ya es una URL pública válida de imagen (http/https), devolverla tal cual
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    // Si ya es una URL de imagen pública directa, devolverla
-    if (trimmed.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
-      return trimmed;
-    }
-    
     // Si es un link de Drive, extraer el ID
     let fileId: string | null = null;
     
-    // Formato: https://drive.google.com/file/d/FILE_ID/view o /preview
-    const match1 = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    // Formato: https://drive.google.com/file/d/FILE_ID/view o /preview o /edit
+    const match1 = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{25,})/);
     if (match1) {
       fileId = match1[1];
     }
     
-    // Formato: https://drive.google.com/open?id=FILE_ID
+    // Formato: https://drive.google.com/open?id=FILE_ID o uc?id=...
+    // Permitimos espacios o saltos de línea (\s*) por si el dato viene sucio
     if (!fileId) {
-      const match2 = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const match2 = trimmed.match(/[\?&]\s*id=([a-zA-Z0-9_-]{25,})/);
       if (match2) {
         fileId = match2[1];
       }
     }
-    
-    // Si encontramos un ID, usar el CDN de Google que permite hotlinking
-    if (fileId) {
-      return `https://lh3.googleusercontent.com/d/${fileId}`;
+
+    // Formato: https://docs.google.com/file/d/FILE_ID/
+    if (!fileId) {
+      const match3 = trimmed.match(/\/d\/([a-zA-Z0-9_-]{25,})/);
+      if (match3) {
+        fileId = match3[1];
+      }
+    }
+
+    // Búsqueda de último recurso: cualquier cadena de 25+ caracteres alfanuméricos 
+    // que parezca un ID dentro de una URL de Google
+    if (!fileId && (trimmed.includes("drive.google.com") || trimmed.includes("docs.google.com"))) {
+      const matchFallback = trimmed.match(/([a-zA-Z0-9_-]{28,})/);
+      if (matchFallback) {
+        fileId = matchFallback[1];
+      }
     }
     
-    // Si no es un link de Drive reconocido, devolverlo tal cual (puede ser otra URL)
+    // Validar longitud mínima (los IDs suelen tener 33 caracteres)
+    if (fileId && fileId.length < 20) {
+      fileId = null;
+    }
+    
+    // Volvemos a usar lh3 como principal para evitar baneos por rate-limit de Google Drive.
+    // El tamaño s800 es un buen equilibrio entre calidad y velocidad.
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}=s800`;
+    }
+    
+    // Si ya es una URL de imagen pública directa, devolverla
+    if (trimmed.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?|$)/i)) {
+      return trimmed;
+    }
+    
     return trimmed;
   }
   
   // Si no empieza con http, asumir que es un ID de archivo de Drive
-  // Limpiar el string para obtener solo el ID
   const cleanId = trimmed.replace(/[^a-zA-Z0-9_-]/g, "");
-  if (cleanId.length > 10) {
-    return `https://lh3.googleusercontent.com/d/${cleanId}`;
+  if (cleanId.length >= 25) { 
+    return `https://lh3.googleusercontent.com/d/${cleanId}=s800`;
   }
   
   return undefined;
@@ -339,16 +362,6 @@ export function normalizeProfile(args: {
     healthRestrictions: row["RESTRICCIONES ALIMENTICIAS"],
     healthIssues: row["PROBLEMA DE SALUD A SABER"],
     disability: row["DISCAPACIDAD A SABER"],
-    mainPhoto: convertDriveLinkToPublicUrl(
-      row["FOTO INDIVIDUAL PLANO ENTERO FONDO LISO"] ||
-      row["FOTO INDIVIDUAL PRIMER PLANO FONDO LISO"]
-    ),
-    headshotPhoto: convertDriveLinkToPublicUrl(
-      row["FOTO INDIVIDUAL PRIMER PLANO FONDO LISO"]
-    ),
-    mediumPhoto: convertDriveLinkToPublicUrl(
-      row["FOTO INDIVIDUAL PLANO MEDIO FONDO LISO"]
-    ),
     extraPhotos: row["FOTOS ADICIONALES"]
       ? row["FOTOS ADICIONALES"]
           .split(/\s*,\s*|\s+/)
@@ -367,6 +380,17 @@ export function normalizeProfile(args: {
       row["OBSERVACIÓN DE CONTACTO"] ||
       row["Observaciones"]
   };
+
+  // Lógica mejorada para asegurar que siempre haya una foto principal si existe alguna
+  const headshot = convertDriveLinkToPublicUrl(row["FOTO INDIVIDUAL PRIMER PLANO FONDO LISO"]);
+  const fullBody = convertDriveLinkToPublicUrl(row["FOTO INDIVIDUAL PLANO ENTERO FONDO LISO"]);
+  const medium = convertDriveLinkToPublicUrl(row["FOTO INDIVIDUAL PLANO MEDIO FONDO LISO"]);
+  const firstExtra = profile.extraPhotos && profile.extraPhotos.length > 0 ? profile.extraPhotos[0] : undefined;
+
+  profile.headshotPhoto = headshot || medium || fullBody || firstExtra;
+  profile.mainPhoto = fullBody || medium || headshot || firstExtra;
+  profile.mediumPhoto = medium || headshot || fullBody || firstExtra;
+  profile.thumbnail = profile.headshotPhoto || profile.mainPhoto || profile.mediumPhoto;
 
   return profile;
 }

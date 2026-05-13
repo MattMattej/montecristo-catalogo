@@ -52,4 +52,19 @@ input[type="range"].age-range-slider::-moz-range-track {
   border: none;
 }
 
+@layer utilities {
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 

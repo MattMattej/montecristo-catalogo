@@ -39,7 +39,7 @@ const SHEETS = [
     key: "punta-actores",
     location: "Punta del Este",
     category: "ACTORES",
-    spreadsheetId: "1KYBWuk158ASdvZGUtI0Haw_ulC3x5EFCCVm4e5jTX1M",
+    spreadsheetId: "1Vri9qKjOZV6bgSBSQALCJ-TypOwO7DIWrF4WGq230qA",
     sheetName: "Punta del Este – 2a ACTORES"
   },
   {
@@ -53,7 +53,7 @@ const SHEETS = [
     key: "punta-extras",
     location: "Punta del Este",
     category: "EXTRAS",
-    spreadsheetId: "1agFoOoo6fqhiysRzWwipOwsoerFc6HxDf4s0JdxIAKI",
+    spreadsheetId: "1h4EVIjUMduc6cUyOnZa7mUmkBTKmwieA8YxiLe7aLM4",
     sheetName: "Punta del Este – 2c EXTRAS"
   },
   {
@@ -120,12 +120,16 @@ function doGet(e) {
           debug.push(`  Sheet "${def.sheetName}" no encontrada. Intentando nombres alternativos...`);
           debug.push(`  Sheets disponibles: ${sheetNames.join(", ")}`);
           
-          // Intentar nombres comunes de Google Forms
+          // Intentar nombres comunes de Google Forms y variaciones de guiones
           const alternativeNames = [
             "Respuestas de formulario 1",
+            "Respuesta de formulario 1", // Versión singular
             "Respuestas de formulario",
+            "Respuesta de formulario",
             "Form Responses 1",
             "Form Responses",
+            def.sheetName.replace(/[–—]/g, "-"), // Cambiar guión largo por corto
+            def.sheetName.replace(/-/g, "–"),    // Cambiar guión corto por largo
             def.sheetName.toLowerCase(),
             def.sheetName.toUpperCase()
           ];
@@ -140,16 +144,27 @@ function doGet(e) {
               }
             }
           }
-          
-          // Si aún no la encuentra, usar la primera sheet disponible
-          if (!sh && sheetNames.length > 0) {
-            debug.push(`  Usando la primera sheet disponible: "${sheetNames[0]}"`);
-            sh = ss.getSheetByName(sheetNames[0]);
+
+          // Búsqueda por proximidad (último recurso): que el nombre contenga la ciudad Y la categoría
+          if (!sh) {
+            const locationTerm = def.location.toLowerCase();
+            const categoryTerm = def.category.toLowerCase();
+            
+            for (var sIdx = 0; sIdx < allSheets.length; sIdx++) {
+              const currentName = allSheets[sIdx].getName().toLowerCase();
+              // Si el nombre de la pestaña contiene tanto la ciudad como la categoría, es muy probable que sea la correcta
+              if (currentName.indexOf(locationTerm) !== -1 && currentName.indexOf(categoryTerm) !== -1) {
+                sh = allSheets[sIdx];
+                debug.push(`  ✓ Sheet encontrada por proximidad: "${sh.getName()}"`);
+                break;
+              }
+            }
           }
           
+          // Si aún no la encuentra, NO usar la primera sheet disponible para evitar mezclar datos de diferentes categorías
           if (!sh) {
-            errors.push(`${def.key}: No se pudo encontrar ninguna sheet. Sheets disponibles: ${sheetNames.join(", ")}`);
-            debug.push(`  ERROR: No se pudo encontrar ninguna sheet`);
+            errors.push(`${def.key}: No se encontró la pestaña "${def.sheetName}" ni nombres alternativos. Se salta esta hoja para evitar mostrar datos incorrectos.`);
+            debug.push(`  ERROR CRÍTICO: No se encontró la pestaña "${def.sheetName}". SALTANDO.`);
             return;
           }
         }
@@ -306,4 +321,85 @@ function handleUpdate(body) {
   });
 
   return createCORSResponse({ ok: true });
+}
+
+/**
+ * Función de utilidad para corregir los permisos de todas las fotos
+ * registradas en las hojas de cálculo.
+ * 
+ * Se recomienda ejecutar esto manualmente desde el editor de Apps Script.
+ */
+function fixAllPermissions() {
+  const photoColumns = [
+    "FOTO INDIVIDUAL PLANO ENTERO FONDO LISO",
+    "FOTO INDIVIDUAL PRIMER PLANO FONDO LISO",
+    "FOTO INDIVIDUAL PLANO MEDIO FONDO LISO",
+    "FOTOS ADICIONALES",
+    "FOTO INDIVIDUAL PLANO ENTERO FONDO LISO ", // Con espacio extra
+    "FOTO INDIVIDUAL PRIMER PLANO FONDO LISO ", 
+    "FOTO INDIVIDUAL PLANO MEDIO FONDO LISO ",
+    "FOTOS ADICIONALES "
+  ];
+
+  const processedFiles = new Set();
+
+  SHEETS.forEach(function(def) {
+    console.log("Revisando permisos en: " + def.key);
+    try {
+      const ss = SpreadsheetApp.openById(def.spreadsheetId);
+      const sh = ss.getSheetByName(def.sheetName);
+      if (!sh) {
+        console.log("  No se encontró la pestaña: " + def.sheetName);
+        return;
+      }
+
+      const data = sh.getDataRange().getValues();
+      if (data.length < 2) return;
+
+      const headers = data[0].map(h => String(h || "").trim());
+      const indices = [];
+      
+      photoColumns.forEach(col => {
+        const idx = headers.indexOf(col.trim());
+        if (idx !== -1) indices.push(idx);
+      });
+
+      if (indices.length === 0) {
+        console.log("  No se encontraron columnas de fotos.");
+        return;
+      }
+
+      let count = 0;
+      for (let i = 1; i < data.length; i++) {
+        indices.forEach(idx => {
+          const cellValue = String(data[i][idx] || "");
+          if (!cellValue) return;
+
+          const ids = extractDriveIds(cellValue);
+          ids.forEach(id => {
+            if (processedFiles.has(id)) return;
+            processedFiles.add(id);
+            
+            try {
+              const file = DriveApp.getFileById(id);
+              file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+              count++;
+            } catch (e) {
+              // console.log("  Error con archivo " + id + ": " + e.message);
+            }
+          });
+        });
+      }
+      console.log("  ✓ Se corrigieron " + count + " archivos en esta hoja.");
+    } catch (e) {
+      console.log("  Error procesando " + def.key + ": " + e.message);
+    }
+  });
+  console.log("Proceso finalizado. Total archivos procesados: " + processedFiles.size);
+}
+
+function extractDriveIds(text) {
+  const regex = /[a-zA-Z0-9_-]{28,}/g; // Los IDs suelen tener 33 caracteres
+  const matches = text.match(regex);
+  return matches ? matches : [];
 }

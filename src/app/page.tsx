@@ -19,9 +19,45 @@ type Filters = {
 
 const PAGE_SIZE = 24;
 
+// Componente inteligente para manejar imágenes de Drive con fallbacks persistentes
+function DriveImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [hasFailed, setHasFailed] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src);
+    setHasFailed(false);
+  }, [src]);
+
+  return (
+    <img
+      src={currentSrc}
+      alt={alt}
+      className={className}
+      referrerPolicy="no-referrer"
+      loading="lazy"
+      onError={() => {
+        if (hasFailed || !currentSrc) return;
+        
+        let fileId = "";
+        if (currentSrc.includes("lh3.googleusercontent.com")) {
+          fileId = currentSrc.split("/d/")[1]?.split("=")[0] || "";
+        }
+        
+        if (fileId) {
+          // Fallback directo a uc que es infalible si el archivo es público
+          setCurrentSrc(`https://docs.google.com/uc?export=view&id=${fileId}`);
+          setHasFailed(true); // Prevenir bucles infinitos
+        }
+      }}
+    />
+  );
+}
+
 export default function HomePage() {
   const [profiles, setProfiles] = useState<NormalizedProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<NormalizedProfile | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -54,6 +90,21 @@ export default function HomePage() {
   
   // Estado para saber si el usuario ha modificado el slider de edad
   const [ageFilterActive, setAgeFilterActive] = useState(false);
+
+  // Simular progreso de carga
+  useEffect(() => {
+    if (!loading) {
+      setProgress(100);
+      return;
+    }
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 99) return 99;
+        return prev + 0.8; // Más lento para que coincida mejor con el tiempo real de la API
+      });
+    }, 150);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     async function load() {
@@ -444,21 +495,38 @@ export default function HomePage() {
         </section>
 
         {loading && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2 py-4">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></div>
-              <p className="text-sm font-medium text-slate-600">Cargando catálogo de talentos...</p>
+          <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+              <div className="relative">
+                <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-100 border-t-slate-900"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div 
+                    className="h-8 w-8 rounded-full transition-all duration-500 ease-out shadow-sm"
+                    style={{ 
+                      backgroundColor: `hsl(215, 20%, ${90 - (progress * 0.7)}%)`,
+                      transform: `scale(${1 + (progress * 0.0015)})`,
+                      opacity: 0.8 + (progress * 0.002)
+                    }}
+                  ></div>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-semibold tracking-tight text-slate-800">Preparando el catálogo</p>
+                <p className="text-sm text-slate-500 animate-pulse">Buscando los mejores talentos para ti...</p>
+                <p className="text-[10px] font-medium text-slate-400 tabular-nums">{Math.min(99, Math.floor(progress))}%</p>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div
                   key={i}
-                  className="overflow-hidden rounded-2xl bg-card shadow-soft/30"
+                  className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
                 >
-                  <Skeleton className="aspect-[3/4] w-full" />
+                  <div className="aspect-[3/4] w-full bg-slate-200 animate-shimmer" 
+                       style={{ backgroundImage: 'linear-gradient(90deg, #f1f5f9 0%, #f8fafc 50%, #f1f5f9 100%)', backgroundSize: '200% 100%' }} />
                   <div className="p-3 space-y-2">
-                    <Skeleton className="h-3 w-2/3" />
-                    <Skeleton className="h-2 w-1/2" />
+                    <div className="h-3 w-2/3 rounded-full bg-slate-100 animate-pulse" />
+                    <div className="h-2 w-1/2 rounded-full bg-slate-100 animate-pulse" />
                   </div>
                 </div>
               ))}
@@ -499,17 +567,14 @@ export default function HomePage() {
                   className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                 >
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100">
-                    {p.headshotPhoto || p.mainPhoto ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.headshotPhoto || p.mainPhoto}
+                    {p.thumbnail ? (
+                      <DriveImage
+                        src={p.thumbnail}
                         alt={p.fullName}
                         className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
                       />
                     ) : null}
-                    {!p.headshotPhoto && !p.mainPhoto && (
+                    {!p.thumbnail && (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
                         Sin foto
                       </div>
@@ -596,13 +661,10 @@ export default function HomePage() {
                   {/* Foto principal grande */}
                   {currentPhoto ? (
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 aspect-[3/4] shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <DriveImage
                         src={currentPhoto}
                         alt={selected.fullName}
                         className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
                       />
                     </div>
                   ) : (
@@ -629,13 +691,10 @@ export default function HomePage() {
                                 : "opacity-75 hover:opacity-100"
                             }`}
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
+                            <DriveImage
                               src={url}
                               alt={`Foto ${i + 1}`}
                               className="h-full w-full object-cover"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
                             />
                           </button>
                         ))}
