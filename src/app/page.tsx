@@ -132,7 +132,20 @@ export default function HomePage() {
           [normalized[i], normalized[j]] = [normalized[j], normalized[i]];
         }
         
-        setProfiles(normalized);
+        // Deduplicar por nombre, mail y edad para evitar que la misma persona 
+        // aparezca varias veces si está en múltiples configuraciones de hojas
+        const seen = new Set<string>();
+        const uniqueProfiles = normalized.filter((p) => {
+          // Usamos una combinación de campos para identificar a la persona
+          const key = `${p.fullName}|${p.email || ""}|${p.age || ""}`.toLowerCase().trim();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        
+        console.log(`Deduplicated: ${normalized.length} -> ${uniqueProfiles.length}`);
+        
+        setProfiles(uniqueProfiles);
       } catch (e: any) {
         setError(e.message ?? "Error desconocido");
         setProfiles([]); // Asegurar que siempre sea un array

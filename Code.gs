@@ -12,56 +12,56 @@ const SHEETS = [
     location: "Montevideo",
     category: "ACTORES",
     spreadsheetId: "1KYBWuk158ASdvZGUtI0Haw_ulC3x5EFCCVm4e5jTX1M",
-    sheetName: "Respuestas de formulario 1" // Nombre por defecto de Google Forms
+    sheetName: "Montevideo – 1a ACTORES"
   },
   {
     key: "montevideo-casting",
     location: "Montevideo",
     category: "CASTING",
     spreadsheetId: "1SPb5_EQWuGXxxB3Uy32L7LVrcehqeo2E8w2c0pXiFnc",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Montevideo – 1b CASTING"
   },
   {
     key: "montevideo-extras",
     location: "Montevideo",
     category: "EXTRAS",
     spreadsheetId: "1agFoOoo6fqhiysRzWwipOwsoerFc6HxDf4s0JdxIAKI",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Montevideo – 1c EXTRAS"
   },
   {
     key: "montevideo-menores",
     location: "Montevideo",
     category: "MENORES",
     spreadsheetId: "18BBUYX_ADJV9rIuqy2F0CBI9jE2CAAH1JLhhhPG_b_s",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Montevideo – 1d MENORES"
   },
   {
     key: "punta-actores",
     location: "Punta del Este",
     category: "ACTORES",
     spreadsheetId: "1KYBWuk158ASdvZGUtI0Haw_ulC3x5EFCCVm4e5jTX1M",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Punta del Este – 2a ACTORES"
   },
   {
     key: "punta-casting",
     location: "Punta del Este",
     category: "CASTING",
     spreadsheetId: "1B_X87-Rh5rvGPdZXVo3_ffnCObWBnQp3pde4WuE94PE",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Punta del Este – 2b CASTING"
   },
   {
     key: "punta-extras",
     location: "Punta del Este",
     category: "EXTRAS",
     spreadsheetId: "1agFoOoo6fqhiysRzWwipOwsoerFc6HxDf4s0JdxIAKI",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Punta del Este – 2c EXTRAS"
   },
   {
     key: "punta-menores",
     location: "Punta del Este",
     category: "MENORES",
     spreadsheetId: "1R5i_K9P-CGAdDxuElsQ9kMJeJvwpVZeK8UhOULmd95E",
-    sheetName: "Respuestas de formulario 1"
+    sheetName: "Punta del Este – 2d MENORES"
   }
 ];
 
@@ -86,6 +86,7 @@ function doGet(e) {
     const all = [];
     const errors = [];
     const debug = [];
+    const processedSheets = [];
 
     SHEETS.forEach(function (def) {
       try {
@@ -153,7 +154,17 @@ function doGet(e) {
           }
         }
         
-        debug.push(`  ✓ Sheet encontrada`);
+        const finalSheetName = sh.getName();
+        const sheetId = sh.getSheetId();
+        const sheetPath = def.spreadsheetId + "/" + sheetId;
+        
+        if (processedSheets.indexOf(sheetPath) !== -1) {
+          debug.push(`  WARNING: La pestaña "${finalSheetName}" (ID: ${sheetId}) ya fue procesada en esta petición. Saltando para evitar duplicados.`);
+          return;
+        }
+        processedSheets.push(sheetPath);
+
+        debug.push(`  ✓ Usando sheet: "${finalSheetName}" (ID: ${sheetId})`);
         const range = sh.getDataRange();
         const values = range.getValues();
         
